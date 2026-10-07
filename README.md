@@ -1,3 +1,29 @@
+<img width="1600" height="805" alt="front" src="https://github.com/user-attachments/assets/b4f2b6f6-0c4a-4f90-b57e-ac7d5aad7768" />
+
+<img width="1600" height="806" alt="Overview" src="https://github.com/user-attachments/assets/f26b527e-ccdb-4a32-b17e-2357296ac2fb" />
+
+<img width="1600" height="806" alt="Alert" src="https://github.com/user-attachments/assets/49320f83-2aad-4288-8a45-8923f72db944" />
+
+<img width="1600" height="806" alt="training1" src="https://github.com/user-attachments/assets/8bf098e3-3286-4662-b001-67c3928e2496" />
+
+<img width="1600" height="807" alt="training2" src="https://github.com/user-attachments/assets/f8ad6558-5191-4b22-b357-f8691d58f943" />
+
+<img width="1600" height="810" alt="training3" src="https://github.com/user-attachments/assets/ff81517d-aa14-434b-9308-007b89e6d0f5" />
+
+<img width="1917" height="971" alt="training4" src="https://github.com/user-attachments/assets/40dd8649-f4f9-4e5f-ab59-9ad64da9ca5a" />
+
+<img width="1917" height="968" alt="trained_images" src="https://github.com/user-attachments/assets/bae8cf48-77ef-4c43-b351-d5307e993c05" />
+
+<img width="1830" height="822" alt="training_history" src="https://github.com/user-attachments/assets/e695dc1e-dc0e-4a8e-a17e-4266892ab6f8" />
+
+<img width="1897" height="910" alt="training_metrics" src="https://github.com/user-attachments/assets/ca4c9059-109c-4869-be85-a68215264b03" />
+
+
+<img width="1600" height="801" alt="settings" src="https://github.com/user-attachments/assets/2d4ed013-2bbb-485b-9460-88635ad4d3f6" />
+
+
+
+
 # Fire & Smoke Detection (Jetson Orin Nano)
 
 Edge fire and smoke detection for CCTV. A YOLO model runs on an RTSP camera stream, detections are logged to a Flask + SQLite dashboard with a live feed, and the model is retrained on a schedule from images you annotate in the browser.
