@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}Overview — Fire & Smoke Dashboard{% endblock %}
+{% block content %}
+
+<!-- 1-6: stat cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-2"><div class="stat-card fire"><div class="stat-label"><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:16px;height:16px;margin-right:4px">Fire — Today</div><div class="stat-value" id="stat-fire-today">–</div></div></div>
+  <div class="col-6 col-lg-2"><div class="stat-card smoke"><div class="stat-label"><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:16px;height:16px;margin-right:4px">Smoke — Today</div><div class="stat-value" id="stat-smoke-today">–</div></div></div>
+  <div class="col-6 col-lg-2"><div class="stat-card fire"><div class="stat-label"><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:16px;height:16px;margin-right:4px">Fire — 7 days</div><div class="stat-value" id="stat-fire-week">–</div></div></div>
+  <div class="col-6 col-lg-2"><div class="stat-card smoke"><div class="stat-label"><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:16px;height:16px;margin-right:4px">Smoke — 7 days</div><div class="stat-value" id="stat-smoke-week">–</div></div></div>
+  <div class="col-6 col-lg-2"><div class="stat-card fire"><div class="stat-label"><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:16px;height:16px;margin-right:4px">Fire — 30 days</div><div class="stat-value" id="stat-fire-month">–</div></div></div>
+  <div class="col-6 col-lg-2"><div class="stat-card smoke"><div class="stat-label"><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:16px;height:16px;margin-right:4px">Smoke — 30 days</div><div class="stat-value" id="stat-smoke-month">–</div></div></div>
+</div>
+
+<!-- 8-11: week/month toggle charts -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:18px;height:18px;margin-right:4px;vertical-align:-3px">Fire — weeks this month</h6>
+        <div class="chart-toggle-nav" id="nav-week-fire"></div>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-week-fire"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="chart-card">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:18px;height:18px;margin-right:4px;vertical-align:-3px">Smoke — weeks this month</h6>
+        <div class="chart-toggle-nav" id="nav-week-smoke"></div>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-week-smoke"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="chart-card">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:18px;height:18px;margin-right:4px;vertical-align:-3px">Fire — months this year</h6>
+        <div class="chart-toggle-nav" id="nav-year-fire"></div>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-year-fire"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="chart-card">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:18px;height:18px;margin-right:4px;vertical-align:-3px">Smoke — months this year</h6>
+        <div class="chart-toggle-nav" id="nav-year-smoke"></div>
+      </div>
+      <div class="chart-canvas-wrap"><canvas id="chart-year-smoke"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-3">
+    <div class="chart-card h-100">
+      <h6 class="mb-2"><i class="bi bi-pie-chart-fill"></i> Today — Fire vs Smoke</h6>
+      <div class="chart-canvas-wrap" style="height:200px"><canvas id="chart-split"></canvas></div>
+      <div id="split-legend" class="d-flex justify-content-center gap-3 mt-2 small"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 7: detections table -->
+<div class="chart-card">
+  <h6 class="mb-3"><i class="bi bi-table"></i> Recent Detections</h6>
+  <div class="table-responsive">
+    <table class="detections-table">
+      <thead><tr>
+        <th>Type</th><th>Source</th><th>Detected</th><th>Violation</th><th>Footage</th><th></th>
+      </tr></thead>
+      <tbody id="detections-tbody">
+        <tr><td colspan="6" class="text-center text-muted py-4">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- lightbox for footage thumbnails -->
+<div class="modal fade" id="footageModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body p-0"><img id="footageModalImg" class="w-100 rounded"></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const FIRE = getComputedStyle(document.documentElement).getPropertyValue('--series-fire').trim();
+const SMOKE = getComputedStyle(document.documentElement).getPropertyValue('--series-smoke').trim();
+const MUTED = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim();
+const GRID = getComputedStyle(document.documentElement).getPropertyValue('--gridline').trim();
+
+async function loadStats() {
+  const r = await fetch('/api/stats'); const d = await r.json();
+  document.getElementById('stat-fire-today').textContent = d.fire_today;
+  document.getElementById('stat-smoke-today').textContent = d.smoke_today;
+  document.getElementById('stat-fire-week').textContent = d.fire_week;
+  document.getElementById('stat-smoke-week').textContent = d.smoke_week;
+  document.getElementById('stat-fire-month').textContent = d.fire_month;
+  document.getElementById('stat-smoke-month').textContent = d.smoke_month;
+}
+
+function timeAgo(utcString) {
+  const then = new Date(utcString.replace(' ', 'T') + 'Z');
+  const secs = Math.max(0, (Date.now() - then.getTime()) / 1000);
+  if (secs < 60) return 'just now';
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  return `${Math.floor(secs / 86400)}d ago`;
+}
+function localTime(utcString) {
+  const then = new Date(utcString.replace(' ', 'T') + 'Z');
+  return then.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+async function loadTable() {
+  const r = await fetch('/api/table'); const rows = await r.json();
+  const tbody = document.getElementById('detections-tbody');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No detections yet.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr id="row-${r.id}">
+      <td>
+        <div class="dtype-cell">
+          <span class="dtype-icon ${r.detection_type}">${r.detection_type === 'fire'
+            ? '<img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="fire">'
+            : '<img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="smoke">'}</span>
+          <span class="dtype-label">${r.detection_type}</span>
+        </div>
+      </td>
+      <td>
+        <div class="cell-primary">${r.camera_name}</div>
+        <div class="cell-secondary">${r.location}</div>
+      </td>
+      <td>
+        <div class="cell-time">${localTime(r.timestamp)}</div>
+        <span class="time-ago">${timeAgo(r.timestamp)}</span>
+      </td>
+      <td>${r.is_violation
+          ? '<span class="status-pill is-yes">Violation</span>'
+          : '<span class="status-pill is-no">Clear</span>'}</td>
+      <td>${r.footage_url ? `<img src="${r.footage_url}" class="footage-thumb" onclick="showFootage('${r.footage_url}')">` : '<span class="footage-empty">—</span>'}</td>
+      <td>${r.reviewed_false_positive
+          ? '<span class="status-pill is-simulated" title="Sent to Training → Flagged for review"><i class="bi bi-flag-fill"></i></span>'
+          : (r.footage_url ? `<button class="mark-wrong-btn-sm" title="Not sure this is ${r.detection_type} — send for manual review" onclick="markWrong(${r.id})"><i class="bi bi-flag"></i></button>` : '')}</td>
+    </tr>`).join('');
+}
+function showFootage(url) {
+  document.getElementById('footageModalImg').src = url;
+  new bootstrap.Modal(document.getElementById('footageModal')).show();
+}
+
+async function markWrong(id) {
+  const r = await fetch(`/api/detections/${id}/mark-wrong`, { method: 'POST' });
+  const d = await r.json();
+  if (!r.ok) { alert(d.error || 'Could not flag this detection.'); return; }
+  loadTable();
+}
+
+const baseBarOpts = (labelColor) => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+  scales: {
+    x: { grid: { display: false }, ticks: { color: MUTED } },
+    y: { beginAtZero: true, ticks: { color: MUTED, precision: 0 }, grid: { color: GRID } },
+  },
+});
+
+let charts = {};
+function upsertBar(id, labels, counts, color) {
+  if (charts[id]) { charts[id].data.labels = labels; charts[id].data.datasets[0].data = counts; charts[id].update(); return; }
+  charts[id] = new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: counts, backgroundColor: color, borderRadius: 4, maxBarThickness: 40 }] },
+    options: baseBarOpts(),
+  });
+}
+function upsertLine(id, labels, counts, color) {
+  if (charts[id]) { charts[id].data.labels = labels; charts[id].data.datasets[0].data = counts; charts[id].update(); return; }
+  charts[id] = new Chart(document.getElementById(id), {
+    type: 'line',
+    data: { labels, datasets: [{ data: counts, borderColor: color, backgroundColor: color + '33', fill: true, tension: 0.35, pointRadius: 4, pointBackgroundColor: color, borderWidth: 2 }] },
+    options: baseBarOpts(),
+  });
+}
+
+// ── week toggle (calendar-style prev/next month) ──
+async function loadWeekChart(kind, period) {
+  const url = `/api/chart/weekly?type=${kind}${period ? '&month=' + period : ''}`;
+  const r = await fetch(url); const d = await r.json();
+  const color = kind === 'fire' ? FIRE : SMOKE;
+  if (kind === 'fire') upsertBar('chart-week-fire', d.labels, d.counts, color);
+  else upsertLine('chart-week-smoke', d.labels, d.counts, color);
+  const nav = document.getElementById(`nav-week-${kind}`);
+  nav.innerHTML = `
+    <button onclick="loadWeekChart('${kind}','${d.prev}')"><i class="bi bi-chevron-left"></i></button>
+    <span class="period-label">${d.month_label}</span>
+    <button ${d.is_current_month ? 'disabled' : ''} onclick="loadWeekChart('${kind}','${d.next}')"><i class="bi bi-chevron-right"></i></button>`;
+}
+
+// ── month-of-year toggle (prev/next year) ──
+async function loadYearChart(kind, period) {
+  const url = `/api/chart/monthly?type=${kind}${period ? '&year=' + period : ''}`;
+  const r = await fetch(url); const d = await r.json();
+  const color = kind === 'fire' ? FIRE : SMOKE;
+  upsertBar(`chart-year-${kind}`, d.labels, d.counts, color);
+  const nav = document.getElementById(`nav-year-${kind}`);
+  nav.innerHTML = `
+    <button onclick="loadYearChart('${kind}','${d.prev}')"><i class="bi bi-chevron-left"></i></button>
+    <span class="period-label">${d.year_label}</span>
+    <button ${d.is_current_year ? 'disabled' : ''} onclick="loadYearChart('${kind}','${d.next}')"><i class="bi bi-chevron-right"></i></button>`;
+}
+
+async function loadSplit() {
+  const r = await fetch('/api/chart/split'); const d = await r.json();
+  new Chart(document.getElementById('chart-split'), {
+    type: 'pie',
+    data: { labels: d.labels, datasets: [{ data: d.counts, backgroundColor: [FIRE, SMOKE], borderColor: getComputedStyle(document.documentElement).getPropertyValue('--surface-1'), borderWidth: 2 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+  });
+  // Custom legend (not Chart.js's canvas-drawn one) so Fire/Smoke can show
+  // the actual photo stickers instead of flat color swatches.
+  document.getElementById('split-legend').innerHTML = `
+    <span style="color:${MUTED}"><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:14px;height:14px;border-radius:3px;margin-right:5px;vertical-align:-2px">Fire</span>
+    <span style="color:${MUTED}"><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:14px;height:14px;border-radius:3px;margin-right:5px;vertical-align:-2px">Smoke</span>`;
+}
+
+loadStats();
+loadTable();
+loadWeekChart('fire');
+loadWeekChart('smoke');
+loadYearChart('fire');
+loadYearChart('smoke');
+loadSplit();
+setInterval(() => { loadStats(); loadTable(); }, 30000); // keep the numbers live
+</script>
+{% endblock %}

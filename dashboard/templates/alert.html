@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Alert — Fire & Smoke Dashboard{% endblock %}
+{% block content %}
+
+<!-- Emergency contact -->
+<div class="chart-card mb-4">
+  <h6 class="mb-1"><i class="bi bi-telephone-fill" style="color:var(--series-fire)"></i> Emergency Contact</h6>
+  <p class="text-muted small mb-3">Whenever a fire is confirmed, this number gets a text — at most once every 5 minutes per ongoing fire.</p>
+
+  <div id="recipient-set" style="display:none">
+    <span class="recipient-badge">
+      <i class="bi bi-check-circle-fill"></i>
+      <span id="recipient-phone"></span>
+      <button onclick="removeRecipient()" title="Remove"><i class="bi bi-x-lg"></i></button>
+    </span>
+  </div>
+
+  <div id="recipient-form">
+    <div class="phone-input-row">
+      <div class="phone-input-wrap">
+        <span class="phone-prefix">+91</span>
+        <input type="tel" id="phone-input" placeholder="98765 43210" maxlength="10" inputmode="numeric">
+      </div>
+      <button class="btn btn-sm" style="background:var(--series-fire); color:#fff; border-radius:8px; padding:0.5rem 1.1rem; font-weight:600" onclick="saveRecipient()">Save number</button>
+    </div>
+    <div id="recipient-msg" class="alert-form-msg"></div>
+  </div>
+</div>
+
+<!-- Fire detections gallery -->
+<div class="chart-card mb-4">
+  <h6 class="mb-3"><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:18px;height:18px;margin-right:4px;vertical-align:-3px">Fire Detections</h6>
+  <div id="fire-gallery" class="fire-gallery">
+    <div class="text-center text-muted py-4" style="grid-column:1/-1">Loading…</div>
+  </div>
+</div>
+
+<!-- Alert history -->
+<div class="chart-card">
+  <h6 class="section-label mb-3"><i class="bi bi-send-check"></i> Alert history</h6>
+  <div class="table-responsive">
+    <table class="detections-table">
+      <thead><tr><th>Sent</th><th>Phone</th><th>Message</th><th>Status</th></tr></thead>
+      <tbody id="alert-history-tbody">
+        <tr><td colspan="4" class="text-center text-muted py-4">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- lightbox for fire thumbnails -->
+<div class="modal fade" id="fireModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body p-0"><img id="fireModalImg" class="w-100 rounded"></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function timeAgo(utcString) {
+  const then = new Date(utcString.replace(' ', 'T') + 'Z');
+  const secs = Math.max(0, (Date.now() - then.getTime()) / 1000);
+  if (secs < 60) return 'just now';
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  return `${Math.floor(secs / 86400)}d ago`;
+}
+function localTime(utcString) {
+  const then = new Date(utcString.replace(' ', 'T') + 'Z');
+  return then.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+async function loadRecipient() {
+  const r = await fetch('/api/alert/recipient'); const d = await r.json();
+  const setBox = document.getElementById('recipient-set');
+  const formBox = document.getElementById('recipient-form');
+  if (d) {
+    document.getElementById('recipient-phone').textContent = d.phone_number;
+    setBox.style.display = 'block';
+    formBox.style.display = 'none';
+  } else {
+    setBox.style.display = 'none';
+    formBox.style.display = 'block';
+  }
+}
+
+async function saveRecipient() {
+  const input = document.getElementById('phone-input');
+  const msg = document.getElementById('recipient-msg');
+  const r = await fetch('/api/alert/recipient', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: input.value }),
+  });
+  const d = await r.json();
+  if (!r.ok) { msg.textContent = d.error || 'Could not save.'; msg.className = 'alert-form-msg error'; return; }
+  msg.textContent = ''; input.value = '';
+  loadRecipient();
+}
+
+async function removeRecipient() {
+  await fetch('/api/alert/recipient', { method: 'DELETE' });
+  loadRecipient();
+}
+
+async function loadFireImages() {
+  const r = await fetch('/api/alert/fire-images'); const rows = await r.json();
+  const box = document.getElementById('fire-gallery');
+  if (!rows.length) { box.innerHTML = '<div class="text-center text-muted py-4" style="grid-column:1/-1">No fire detections yet.</div>'; return; }
+  box.innerHTML = rows.map(r => `
+    <div class="fire-gallery-item ${r.reviewed_false_positive ? 'is-flagged' : ''}" id="gallery-item-${r.id}">
+      <div ${r.footage_url ? `onclick="showFire('${r.footage_url}')"` : ''} style="cursor:${r.footage_url ? 'pointer' : 'default'}">
+        ${r.footage_url ? `<img src="${r.footage_url}">` : '<div style="height:100px;display:flex;align-items:center;justify-content:center;color:var(--text-muted)"><i class="bi bi-image"></i></div>'}
+      </div>
+      <div class="meta">
+        <div>${localTime(r.timestamp)}</div>
+        <div class="conf">${(r.confidence * 100).toFixed(0)}% conf</div>
+      </div>
+      ${r.reviewed_false_positive
+        ? '<div class="wrong-badge"><i class="bi bi-flag-fill"></i> Flagged — sent to Training → Flagged for review</div>'
+        : `<button class="mark-wrong-btn" onclick="markWrong(${r.id})"><i class="bi bi-flag"></i> Not sure this is fire</button>`}
+    </div>`).join('');
+}
+function showFire(url) {
+  document.getElementById('fireModalImg').src = url;
+  new bootstrap.Modal(document.getElementById('fireModal')).show();
+}
+
+async function markWrong(id) {
+  const r = await fetch(`/api/detections/${id}/mark-wrong`, { method: 'POST' });
+  const d = await r.json();
+  if (!r.ok) { alert(d.error || 'Could not flag this detection.'); return; }
+  loadFireImages();
+}
+
+async function loadAlertHistory() {
+  const r = await fetch('/api/alert/history'); const rows = await r.json();
+  const tbody = document.getElementById('alert-history-tbody');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No alerts sent yet.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>
+        <div class="cell-time">${localTime(r.created_at)}</div>
+        <span class="time-ago">${timeAgo(r.created_at)}</span>
+      </td>
+      <td class="cell-primary">${r.phone_number}</td>
+      <td class="cell-secondary">${r.message}</td>
+      <td><span class="status-pill is-${r.status}">${r.status}</span></td>
+    </tr>`).join('');
+}
+
+loadRecipient();
+loadFireImages();
+loadAlertHistory();
+setInterval(() => { loadFireImages(); loadAlertHistory(); }, 30000);
+</script>
+{% endblock %}

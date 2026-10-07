@@ -1,0 +1,528 @@
+{% extends "base.html" %}
+{% block title %}Training — Fire & Smoke Dashboard{% endblock %}
+{% block content %}
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="stat-label">Nightly training window</div>
+      <div class="stat-value" style="font-size:1.4rem" id="training-window">–</div>
+      <div class="text-muted small mt-1">Fully automatic — no manual start button exists.</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card fire">
+      <div class="stat-label"><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:16px;height:16px;margin-right:4px">Fire — pending / annotated</div>
+      <div class="stat-value" id="fire-counts" style="font-size:1.6rem">–</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card smoke">
+      <div class="stat-label"><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:16px;height:16px;margin-right:4px">Smoke — pending / annotated</div>
+      <div class="stat-value" id="smoke-counts" style="font-size:1.6rem">–</div>
+    </div>
+  </div>
+</div>
+
+<div class="chart-card mb-3">
+  <div class="small text-muted" id="last-run-info">Last training run: –</div>
+</div>
+
+<div class="chart-card">
+  <!-- Hidden entirely in single-image Edit mode (arrived via /training?edit=<id>
+       from the Trained Images page) — there's no queue to tab/browse, just
+       the one image passed in. -->
+  <div id="queue-mode-bar">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <div class="btn-group" role="group">
+        <button class="btn btn-outline-secondary" id="tab-fire" onclick="switchClass('fire')"><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:14px;height:14px;margin-right:4px;vertical-align:-1px">Fire queue</button>
+        <button class="btn btn-outline-secondary" id="tab-smoke" onclick="switchClass('smoke')"><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:14px;height:14px;margin-right:4px;vertical-align:-1px">Smoke queue</button>
+        <button class="btn btn-outline-warning" id="tab-review" onclick="switchClass('review')">🚩 Flagged for review</button>
+        <button class="btn btn-outline-info" id="tab-validation" onclick="switchClass('validation')">🎯 Validation Set</button>
+      </div>
+      <span class="class-badge" id="drawing-badge">Drawing: fire <img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:14px;height:14px;vertical-align:-2px"></span>
+    </div>
+
+    <div class="thumb-strip mb-3" id="thumb-strip"></div>
+  </div>
+  <div id="edit-mode-bar" style="display:none" class="mb-3 d-flex justify-content-between align-items-center">
+    <span class="text-muted small"><i class="bi bi-pencil"></i> Editing a single image from <a href="/trained-images">Trained Images</a></span>
+    <span id="edit-saved-msg" class="text-success small fw-bold" style="display:none"><i class="bi bi-check-circle-fill"></i> Saved</span>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <!-- One shared row — which buttons are visible depends on the active
+           tab (set in switchClass()), each toggled individually rather than
+           as separate container divs, so whichever are visible always sit
+           side by side in a single line instead of stacking. Fire — red
+           box/Smoke — blue box only apply on the Flagged-for-review tab
+           (that queue is mixed fire/smoke, so the person picks the class
+           per image); No fire/No smoke are each locked to their own
+           single-class queue. -->
+      <div id="class-picker" class="d-flex gap-2 mb-2 flex-wrap">
+        <button class="btn btn-sm" id="pick-fire" onclick="pickReviewClass('fire')" style="display:none; border:2px solid var(--series-fire)"><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:14px;height:14px;margin-right:4px;vertical-align:-1px">Fire — red box</button>
+        <button class="btn btn-sm" id="pick-smoke" onclick="pickReviewClass('smoke')" style="display:none; border:2px solid var(--series-smoke)"><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:14px;height:14px;margin-right:4px;vertical-align:-1px">Smoke — blue box</button>
+        <button class="btn btn-sm ms-auto" id="pick-no-smoke" onclick="pickNoDetection('no-smoke')" style="display:none; border:2px solid var(--text-muted); color:var(--text-secondary)" title="No smoke in this image — then press Save & Next to confirm"><img src="/static/img/no-smoke-icon.png" alt="" style="width:16px;height:16px;margin-right:4px;vertical-align:-3px;border-radius:3px">No smoke</button>
+        <button class="btn btn-sm" id="pick-no-fire" onclick="pickNoDetection('no-fire')" style="display:none; border:2px solid var(--text-muted); color:var(--text-secondary)" title="No fire in this image — then press Save & Next to confirm"><img src="/static/img/no-fire-icon.jpg" alt="" style="width:16px;height:16px;margin-right:4px;vertical-align:-3px;border-radius:3px">No fire</button>
+        <button class="btn btn-sm" id="pick-none" onclick="pickNoDetection('none')" style="display:none; border:2px solid var(--text-muted); color:var(--text-secondary)" title="Neither fire nor smoke — then press Save & Next to confirm">🚫 No detection</button>
+      </div>
+      <p class="small text-muted mb-1" id="current-filename" style="word-break:break-all">&nbsp;</p>
+      <div class="annotate-stage">
+        <canvas id="annotate-canvas"></canvas>
+      </div>
+      <div class="mt-2 d-flex gap-2">
+        <button class="btn btn-outline-danger btn-sm" onclick="clearBoxes()"><i class="bi bi-eraser"></i> Clear boxes</button>
+        <button class="btn btn-outline-secondary btn-sm" onclick="undoBox()"><i class="bi bi-arrow-counterclockwise"></i> Undo</button>
+        <button class="btn btn-outline-warning btn-sm ms-auto" onclick="skipImage()" id="skip-btn" title="Leave unannotated — it'll come back in the queue"><i class="bi bi-skip-forward"></i> Skip (come back later)</button>
+        <button class="btn btn-success btn-sm" onclick="saveAnnotation()" id="save-btn"><i class="bi bi-check2-circle"></i> Save &amp; Next</button>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <h6 class="text-muted">Boxes on this image</h6>
+      <ul class="list-group" id="box-list"></ul>
+      <p class="text-muted small mt-3" id="annotate-hint">Click-drag on the image to draw a box. Class is locked to the queue you're annotating — <span class="fw-bold">no class picker</span>, matching the single-class-per-queue workflow.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Ultralytics-benchmark-style training results -->
+<div class="chart-card results-shell mt-3">
+  <h6 class="mb-3"><i class="bi bi-graph-up-arrow"></i> Latest Training Result</h6>
+  <div id="no-results-msg" class="text-center text-muted py-4">No completed training run yet — this fills in automatically after the first successful nightly run.</div>
+
+  <div id="results-body" style="display:none">
+    <div class="row g-3 mb-3">
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <h6 class="mb-1">Precision</h6>
+          <p class="text-muted small mb-3">Of every box the model drew, how many were right — higher is better</p>
+          <div id="bars-precision"></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <h6 class="mb-1">Recall</h6>
+          <p class="text-muted small mb-3">Of every real fire/smoke, how many it caught — higher is better</p>
+          <div id="bars-recall"></div>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-lg-12">
+        <div class="chart-card">
+          <h6 class="mb-1">mAP@50</h6>
+          <p class="text-muted small mb-3">Overall detection accuracy per class — higher is better</p>
+          <div id="bars-map"></div>
+        </div>
+      </div>
+    </div>
+
+    <h6 class="text-muted small mb-2">Sample predictions from this run</h6>
+    <div class="row g-3 mb-4" id="sample-clips"></div>
+  </div>
+
+  <h6 class="section-label mb-2"><i class="bi bi-clock-history"></i> Run history</h6>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead><tr>
+        <th></th><th>Started</th><th>Status</th><th>Epochs</th><th>Images</th>
+        <th>Precision</th><th>Recall</th><th>mAP50</th><th>mAP50-95</th><th>Speed (ms/img)</th>
+      </tr></thead>
+      <tbody id="run-history-tbody">
+        <tr><td colspan="10" class="text-center text-muted py-3">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentClass = 'fire';
+let reviewClass = null;   // only meaningful when currentClass === 'review'
+let noDetectionPicked = false; // "🚫 No detection" selected — still needs Save & Next, like Fire/Smoke
+let noDetectionSource = null; // which of the 3 negative buttons: 'none' | 'no-fire' | 'no-smoke' — lets each one highlight itself and fade the other two, instead of all three lighting up together
+let queue = [];
+let currentIndex = 0;
+let boxes = []; // {x,y,w,h} in canvas pixel space
+const editId = new URLSearchParams(location.search).get('edit'); // set -> single-image Edit mode from Trained Images
+let pendingNormalizedBoxes = null; // Edit mode: existing label's boxes, converted to pixel space once the image's size is known (see loadCurrentImage's img.onload)
+let img = new Image();
+let drawing = false, startX, startY;
+const canvas = document.getElementById('annotate-canvas');
+const ctx = canvas.getContext('2d');
+
+// Fixed colors per the review workflow: red for fire, blue for smoke —
+// separate from the fire/smoke queue tabs' own orange/blue so a flagged
+// review box is visually unmistakable from a normal-queue one.
+function drawColor() {
+  if (currentClass === 'review' || currentClass === 'validation') return reviewClass === 'smoke' ? '#2a78d6' : '#dc2626';
+  return currentClass === 'fire' ? '#eb6834' : '#2a78d6';
+}
+
+async function loadCounts() {
+  const r = await fetch('/api/training/counts'); const d = await r.json();
+  document.getElementById('training-window').textContent = d.window;
+  document.getElementById('fire-counts').textContent = `${d.fire.pending} / ${d.fire.annotated}`;
+  document.getElementById('smoke-counts').textContent = `${d.smoke.pending} / ${d.smoke.annotated}`;
+  document.getElementById('tab-review').textContent = `🚩 Flagged for review (${d.review.pending})`;
+  document.getElementById('tab-validation').textContent = `🎯 Validation Set (${d.validation.pending})`;
+  document.getElementById('last-run-info').textContent = d.last_run
+    ? `Last training run: ${d.last_run.started_at} — ${d.last_run.status} (${d.last_run.images_used} images)`
+    : 'Last training run: never (runs automatically during the training window once enough images are annotated)';
+}
+
+function switchClass(cls) {
+  currentClass = cls;
+  document.getElementById('tab-fire').classList.toggle('active', cls === 'fire');
+  document.getElementById('tab-smoke').classList.toggle('active', cls === 'smoke');
+  document.getElementById('tab-review').classList.toggle('active', cls === 'review');
+  document.getElementById('tab-validation').classList.toggle('active', cls === 'validation');
+  // Individual buttons, not the whole row — this is what keeps whichever
+  // ones apply to the active tab sitting side by side on one line instead
+  // of stacking. Always shown on every tab (by request) even where a
+  // button doesn't do anything on that tab — e.g. "Fire — red box"/
+  // "Smoke — blue box" only affect the save payload on the review tab
+  // (see saveAnnotation()'s `currentClass === 'review'` check), so clicking
+  // them on the Fire/Smoke queues is a harmless no-op, not a hidden action.
+  document.getElementById('pick-fire').style.display = '';
+  document.getElementById('pick-smoke').style.display = '';
+  document.getElementById('pick-none').style.display = '';
+  document.getElementById('pick-no-fire').style.display = '';
+  document.getElementById('pick-no-smoke').style.display = '';
+  document.getElementById('annotate-hint').textContent = cls === 'review'
+    ? 'This queue is flagged live detections — pick Fire or Smoke above based on what you actually see, then draw the correct box. Leave it empty and save if there’s really nothing there.'
+    : cls === 'validation'
+    ? 'Fixed validation set — never used for training, only to score each run honestly. Fire/Smoke is pre-picked from which folder the image was dropped in; override above only if it was misfiled. Draw the correct box, or use No fire/No smoke/No detection if there’s really nothing there.'
+    : 'Click-drag on the image to draw a box. Class is locked to the queue you’re annotating — no class picker, matching the single-class-per-queue workflow.';
+  if (cls === 'review' || cls === 'validation') {
+    document.getElementById('drawing-badge').style.display = 'none';
+  } else {
+    document.getElementById('drawing-badge').style.display = '';
+    document.getElementById('drawing-badge').innerHTML = cls === 'fire'
+      ? 'Drawing: fire <img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:14px;height:14px;vertical-align:-2px">'
+      : 'Drawing: smoke <img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:14px;height:14px;vertical-align:-2px">';
+    document.getElementById('drawing-badge').className = `class-badge ${cls}`;
+  }
+  loadQueue();
+}
+
+function pickReviewClass(cls) {
+  reviewClass = cls;
+  noDetectionPicked = false;
+  noDetectionSource = null;
+  updateReviewPickerUI();
+  redraw();
+}
+// Just a selection, same as Fire/Smoke — clears any drawn boxes and marks
+// "confirmed nothing here," but still waits for an explicit Save & Next
+// press before anything is written, instead of saving on click. `source`
+// identifies which of the 3 negative buttons was actually pressed, so only
+// that one highlights (the other two fade like Fire/Smoke already do) —
+// fading is opacity-only, never `disabled`, so any of them stays clickable
+// to switch the choice.
+function pickNoDetection(source) {
+  noDetectionPicked = true;
+  noDetectionSource = source;
+  boxes = [];
+  renderBoxList();
+  updateReviewPickerUI();
+  redraw();
+}
+function updateReviewPickerUI() {
+  document.getElementById('pick-fire').style.opacity = (!noDetectionPicked && reviewClass === 'fire') ? '1' : '0.5';
+  document.getElementById('pick-smoke').style.opacity = (!noDetectionPicked && reviewClass === 'smoke') ? '1' : '0.5';
+  document.getElementById('pick-none').style.opacity = (noDetectionPicked && noDetectionSource === 'none') ? '1' : '0.5';
+  document.getElementById('pick-no-fire').style.opacity = (noDetectionPicked && noDetectionSource === 'no-fire') ? '1' : '0.5';
+  document.getElementById('pick-no-smoke').style.opacity = (noDetectionPicked && noDetectionSource === 'no-smoke') ? '1' : '0.5';
+}
+
+async function loadQueue() {
+  const r = await fetch(`/api/training/queue?type=${currentClass}`);
+  queue = await r.json();
+  currentIndex = 0;
+  renderThumbStrip();
+  loadCurrentImage();
+}
+
+function renderThumbStrip() {
+  const strip = document.getElementById('thumb-strip');
+  if (!queue.length) { strip.innerHTML = '<span class="text-muted">Nothing pending — the hourly scan will queue new frames automatically.</span>'; return; }
+  strip.innerHTML = queue.map((q, i) =>
+    `<img src="/api/training/image/${q.id}" class="${i === currentIndex ? 'active' : ''}" title="${q.filename}" onclick="jumpTo(${i})">`).join('');
+}
+function jumpTo(i) { currentIndex = i; boxes = []; noDetectionPicked = false; noDetectionSource = null; loadCurrentImage(); renderThumbStrip(); }
+
+// Moves on WITHOUT saving anything — the image stays annotated=False in the
+// DB, so it's still sitting in the pending queue and comes back around
+// (both later in this same pass, and on the next page load/hourly scan).
+// This is the explicit "I can't box this one right now" action, distinct
+// from Save & Next, which permanently records a result (even an empty one).
+function skipImage() {
+  if (!queue.length) return;
+  currentIndex = (currentIndex + 1) % queue.length;
+  boxes = [];
+  loadCurrentImage();
+  renderThumbStrip();
+}
+
+function loadCurrentImage() {
+  boxes = [];
+  noDetectionPicked = false;
+  noDetectionSource = null;
+  renderBoxList();
+  document.getElementById('current-filename').textContent = queue.length ? queue[currentIndex].filename : ' ';
+  if (!queue.length) { ctx.clearRect(0, 0, canvas.width, canvas.height); return; }
+  if (currentClass === 'review') {
+    // filenames are "review_<original-type>_<detection-id>_...": pre-pick
+    // the class the live model originally guessed, so most of the time
+    // there's nothing to click — just fix the box (or override the class
+    // too, if even the classification was wrong).
+    const fname = queue[currentIndex].filename || '';
+    reviewClass = fname.startsWith('review_smoke_') ? 'smoke' : 'fire';
+    updateReviewPickerUI();
+  } else if (currentClass === 'validation') {
+    // Unlike review, this row already carries a real class_type — set at
+    // scan time from which VALIDATION_HOLDOUT_FOLDERS subfolder it was
+    // dropped into — so pre-pick that instead of guessing from the filename.
+    reviewClass = queue[currentIndex].class_type === 'smoke' ? 'smoke' : 'fire';
+    updateReviewPickerUI();
+  }
+  img = new Image();
+  img.onload = () => {
+    canvas.width = img.width; canvas.height = img.height;
+    // Edit mode only: convert the existing label's normalized boxes into
+    // this image's actual pixel space now that width/height are known, so
+    // re-opening an already-annotated image shows its current box instead
+    // of a blank canvas.
+    if (pendingNormalizedBoxes) {
+      boxes = pendingNormalizedBoxes.map(b => ({
+        x: (b.x_center - b.width / 2) * canvas.width,
+        y: (b.y_center - b.height / 2) * canvas.height,
+        w: b.width * canvas.width,
+        h: b.height * canvas.height,
+      }));
+      pendingNormalizedBoxes = null;
+      renderBoxList();
+    }
+    redraw();
+  };
+  img.src = `/api/training/image/${queue[currentIndex].id}`;
+}
+
+// Single-image Edit mode, reached via /training?edit=<id> from the Trained
+// Images page — loads exactly that one image (whichever class it already
+// belongs to) with its existing box (if any) pre-drawn, instead of pulling
+// a whole class queue.
+async function loadEditImage(id) {
+  const r = await fetch(`/api/training/boxes/${id}`);
+  if (!r.ok) { alert('That image could not be found.'); return; }
+  const data = await r.json();
+  currentClass = data.class_type;
+  queue = [{ id: data.id, filename: data.filename }];
+  currentIndex = 0;
+  pendingNormalizedBoxes = data.boxes;
+
+  document.getElementById('queue-mode-bar').style.display = 'none';
+  document.getElementById('edit-mode-bar').style.display = 'flex';
+  document.getElementById('skip-btn').style.display = 'none';
+  document.getElementById('save-btn').innerHTML = '<i class="bi bi-check2-circle"></i> Save';
+  document.getElementById('drawing-badge').style.display = 'none';
+  document.getElementById('annotate-hint').textContent =
+    `Editing this ${data.class_type} image directly — draw or adjust the box, then Save.`;
+
+  loadCurrentImage();
+}
+
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0);
+  ctx.strokeStyle = drawColor(); ctx.lineWidth = 3;
+  boxes.forEach(b => ctx.strokeRect(b.x, b.y, b.w, b.h));
+}
+
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const scale = canvas.width / rect.width;
+  startX = (e.clientX - rect.left) * scale;
+  startY = (e.clientY - rect.top) * scale;
+  drawing = true;
+});
+canvas.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const rect = canvas.getBoundingClientRect();
+  const scale = canvas.width / rect.width;
+  const x = (e.clientX - rect.left) * scale;
+  const y = (e.clientY - rect.top) * scale;
+  redraw();
+  ctx.strokeStyle = drawColor(); ctx.lineWidth = 3;
+  ctx.strokeRect(startX, startY, x - startX, y - startY);
+});
+canvas.addEventListener('mouseup', e => {
+  if (!drawing) return;
+  drawing = false;
+  const rect = canvas.getBoundingClientRect();
+  const scale = canvas.width / rect.width;
+  const x = (e.clientX - rect.left) * scale;
+  const y = (e.clientY - rect.top) * scale;
+  const box = { x: Math.min(startX, x), y: Math.min(startY, y), w: Math.abs(x - startX), h: Math.abs(y - startY) };
+  if (box.w > 4 && box.h > 4) { boxes.push(box); noDetectionPicked = false; noDetectionSource = null; updateReviewPickerUI(); renderBoxList(); redraw(); }
+});
+
+function renderBoxList() {
+  const list = document.getElementById('box-list');
+  if (!boxes.length) { list.innerHTML = '<li class="list-group-item text-muted">No boxes yet.</li>'; return; }
+  list.innerHTML = boxes.map((b, i) =>
+    `<li class="list-group-item d-flex justify-content-between align-items-center">
+       Box ${i + 1} <button class="btn btn-sm btn-link text-danger" onclick="removeBox(${i})">remove</button>
+     </li>`).join('');
+}
+function removeBox(i) { boxes.splice(i, 1); renderBoxList(); redraw(); }
+function undoBox() { boxes.pop(); renderBoxList(); redraw(); }
+function clearBoxes() { boxes = []; renderBoxList(); redraw(); }
+
+async function saveAnnotation() {
+  if (!queue.length) return;
+  // Was scoped to the review tab only; Fire/Smoke queues now have their own
+  // "No fire"/"No smoke" button (#pick-no-fire/#pick-no-smoke) that sets
+  // this same flag, so an explicit click there should skip the confirm()
+  // popup exactly like "No detection" already does on review.
+  const explicitNoDetection = noDetectionPicked;
+  if (!boxes.length && !explicitNoDetection) {
+    const confirmEmpty = confirm(
+      'No boxes drawn. Click OK to save this as a confirmed "no fire/smoke here" negative, ' +
+      'or Cancel to skip it instead and come back to it later.'
+    );
+    if (!confirmEmpty) { skipImage(); return; }
+  }
+  const norm = boxes.map(b => ({
+    x_center: (b.x + b.w / 2) / canvas.width,
+    y_center: (b.y + b.h / 2) / canvas.height,
+    width: b.w / canvas.width,
+    height: b.h / canvas.height,
+  }));
+  const payload = { image_id: queue[currentIndex].id, boxes: norm };
+  if (currentClass === 'review' || currentClass === 'validation') payload.class_type = reviewClass;
+  await fetch('/api/training/save', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (editId) {
+    // Single-image Edit mode (from Trained Images) has no "next" to advance
+    // to — just confirm the save in place instead of reloading a queue.
+    const msg = document.getElementById('edit-saved-msg');
+    msg.style.display = 'inline';
+    setTimeout(() => { msg.style.display = 'none'; }, 2500);
+  } else {
+    await loadQueue();
+    await loadCounts();
+  }
+}
+
+function fmtPct(v) { return v === null || v === undefined ? '–' : (v * 100).toFixed(1) + '%'; }
+function fmtNum(v, d = 1) { return v === null || v === undefined ? '–' : v.toFixed(d); }
+
+// Animated ranked bars, in the style of the Ultralytics tracker-benchmark
+// report: bars are rendered at width 0 with the final value stashed in a
+// data attribute, then revealed on the next frame so the CSS transition
+// animates the grow — and the number counts up in lockstep rather than
+// just appearing. See metric-sweep/.metric-bar in style.css.
+function renderMetricBars(containerId, entries, suffix) {
+  const el = document.getElementById(containerId);
+  const top = Math.max(...entries.map(e => e.value), 0.0001);
+  el.innerHTML = entries.map(e => `
+    <div class="metric-row ${e.cls}">
+      <span class="metric-name">${e.label}</span>
+      <div class="metric-track"><div class="metric-bar" data-final="${e.value / top * 100}" style="width:0%"></div></div>
+      <span class="metric-val" data-final="${(e.value * 100).toFixed(1)}" data-suffix="${suffix}">0.0${suffix}</span>
+    </div>`).join('');
+}
+
+function playBarAnimations(root) {
+  const ease = t => 1 - Math.pow(1 - t, 3);
+  root.querySelectorAll('.metric-bar').forEach((bar, i) => {
+    const target = bar.dataset.final;
+    requestAnimationFrame(() => setTimeout(() => { bar.style.width = target + '%'; }, 60 + i * 70));
+  });
+  root.querySelectorAll('.metric-val').forEach((val, i) => {
+    const to = parseFloat(val.dataset.final), suffix = val.dataset.suffix;
+    const delay = 60 + i * 70, start = performance.now() + delay;
+    setTimeout(() => { val.textContent = to.toFixed(1) + suffix; }, delay + 950); // clock-independent backstop
+    (function step(now) {
+      const p = Math.min(1, Math.max(0, (now - start) / 900));
+      val.textContent = (to * ease(p)).toFixed(1) + suffix;
+      if (p < 1) requestAnimationFrame(step);
+    })(performance.now());
+  });
+}
+
+async function loadTrainingResults() {
+  const r = await fetch('/api/training/latest');
+  const run = await r.json();
+  const noMsg = document.getElementById('no-results-msg');
+  const body = document.getElementById('results-body');
+  if (!run) { noMsg.style.display = 'block'; body.style.display = 'none'; }
+  else {
+    noMsg.style.display = 'none'; body.style.display = 'block';
+    renderMetricBars('bars-precision', [
+      { label: 'Fire', value: run.fire.precision || 0, cls: 'fire' },
+      { label: 'Smoke', value: run.smoke.precision || 0, cls: 'smoke' },
+    ], '%');
+    renderMetricBars('bars-recall', [
+      { label: 'Fire', value: run.fire.recall || 0, cls: 'fire' },
+      { label: 'Smoke', value: run.smoke.recall || 0, cls: 'smoke' },
+    ], '%');
+    renderMetricBars('bars-map', [
+      { label: 'Fire', value: run.fire.map50 || 0, cls: 'fire' },
+      { label: 'Smoke', value: run.smoke.map50 || 0, cls: 'smoke' },
+    ], '%');
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelectorAll('#bars-precision, #bars-recall, #bars-map').forEach(playBarAnimations);
+    } else {
+      document.querySelectorAll('.metric-bar').forEach(b => b.style.width = b.dataset.final + '%');
+      document.querySelectorAll('.metric-val').forEach(v => v.textContent = parseFloat(v.dataset.final).toFixed(1) + v.dataset.suffix);
+    }
+
+    const clips = document.getElementById('sample-clips');
+    clips.innerHTML = run.sample_images.length
+      ? run.sample_images.map((f, i) => `
+          <div class="col-6 col-md-4 col-lg-2">
+            <figure class="sample-clip ${i % 2 === 0 ? 'fire' : 'smoke'} m-0" style="animation-delay:${260 + i * 70}ms">
+              <img src="/static/training_samples/${f}">
+            </figure>
+          </div>`).join('')
+      : '<p class="text-muted">No sample predictions saved for this run.</p>';
+  }
+
+  const r2 = await fetch('/api/training/results');
+  const runs = await r2.json();
+  const tbody = document.getElementById('run-history-tbody');
+  const bestMap = Math.max(...runs.map(x => x.map50 || 0));
+  tbody.innerHTML = runs.length ? runs.map((x, i) => `
+    <tr class="run-row" style="animation-delay:${220 + i * 60}ms">
+      <td><span class="metric-swatch fire"></span></td>
+      <td>${x.started_at}</td>
+      <td>${x.status}${x.map50 && x.map50 === bestMap ? '<span class="best-badge">best so far</span>' : ''}</td>
+      <td>${x.epochs_completed}</td>
+      <td>${x.images_used}</td>
+      <td>${fmtPct(x.precision)}</td>
+      <td>${fmtPct(x.recall)}</td>
+      <td>${fmtPct(x.map50)}</td>
+      <td>${fmtPct(x.map50_95)}</td>
+      <td>${fmtNum(x.inference_ms)}</td>
+    </tr>`).join('') : '<tr><td colspan="10" class="text-center text-muted py-3">No training runs recorded yet.</td></tr>';
+}
+
+if (editId) {
+  loadEditImage(editId);
+} else {
+  switchClass('fire');
+}
+loadCounts();
+loadTrainingResults();
+setInterval(loadCounts, 60000);
+setInterval(loadTrainingResults, 60000);
+</script>
+{% endblock %}

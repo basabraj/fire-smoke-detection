@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Trained Images — Fire & Smoke Dashboard{% endblock %}
+{% block content %}
+
+<div class="chart-card">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div class="btn-group" role="group">
+      <button class="btn btn-outline-secondary" id="tab-already_trained" onclick="switchSection('already_trained')"><i class="bi bi-folder-check"></i> Already Trained</button>
+      <button class="btn btn-outline-secondary" id="tab-annotated_by_user" onclick="switchSection('annotated_by_user')"><i class="bi bi-pencil-square"></i> Annotated by User</button>
+      <button class="btn btn-outline-secondary" id="tab-not_annotated" onclick="switchSection('not_annotated')"><i class="bi bi-hourglass-split"></i> Not Yet Annotated</button>
+    </div>
+    <div class="btn-group" role="group">
+      <button class="btn btn-outline-secondary btn-sm" id="type-fire" onclick="switchType('fire')"><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:14px;height:14px;margin-right:4px;vertical-align:-1px">Fire</button>
+      <button class="btn btn-outline-secondary btn-sm" id="type-smoke" onclick="switchType('smoke')"><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:14px;height:14px;margin-right:4px;vertical-align:-1px">Smoke</button>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <p class="text-muted small mb-0" id="section-hint"></p>
+    <p class="text-muted small mb-0" id="shown-count"></p>
+  </div>
+
+  <div class="row g-2" id="trained-grid"></div>
+  <p class="text-muted small mt-3" id="trained-empty" style="display:none">Nothing here.</p>
+  <div class="text-center mt-3">
+    <button class="btn btn-outline-secondary btn-sm" id="load-more-btn" style="display:none" onclick="loadMore()">
+      <i class="bi bi-arrow-down-circle"></i> Load more
+    </button>
+  </div>
+</div>
+
+<!-- Full-size preview modal — clicking any thumbnail opens this before
+     committing to the heavier Edit view. -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="previewModalLabel"></h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0"><img id="previewModalImg" class="w-100 rounded"></div>
+      <div class="modal-footer" id="previewModalFooter"></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let section = 'annotated_by_user';
+let imgType = 'fire';
+let counts = {};
+
+const SECTION_HINT = {
+  already_trained: 'Images that already have a saved bounding box and have been swept into a completed training run — view only.',
+  annotated_by_user: 'Images you’ve already drawn a box for, but that haven’t been used in a training run yet. Click Edit to review or fix the box.',
+  not_annotated: 'Images still waiting for a bounding box. Click one to annotate it.',
+};
+
+async function loadCounts() {
+  const r = await fetch('/api/trained/counts');
+  counts = await r.json();
+  document.getElementById('tab-already_trained').innerHTML =
+    `<i class="bi bi-folder-check"></i> Already Trained (${counts[imgType].already_trained})`;
+  document.getElementById('tab-annotated_by_user').innerHTML =
+    `<i class="bi bi-pencil-square"></i> Annotated by User (${counts[imgType].annotated_by_user})`;
+  document.getElementById('tab-not_annotated').innerHTML =
+    `<i class="bi bi-hourglass-split"></i> Not Yet Annotated (${counts[imgType].not_annotated})`;
+}
+
+function switchSection(s) {
+  section = s;
+  ['already_trained', 'annotated_by_user', 'not_annotated'].forEach(id =>
+    document.getElementById('tab-' + id).classList.toggle('active', id === s));
+  document.getElementById('section-hint').textContent = SECTION_HINT[s];
+  loadGrid();
+}
+
+function switchType(t) {
+  imgType = t;
+  document.getElementById('type-fire').classList.toggle('active', t === 'fire');
+  document.getElementById('type-smoke').classList.toggle('active', t === 'smoke');
+  loadCounts();
+  loadGrid();
+}
+
+const PAGE_SIZE = 150;
+let loadedCount = 0;
+let totalCount = 0;
+
+function renderRow(row) {
+  // ?boxes=1 draws the saved label on the image itself — without it a
+  // thumbnail is just the raw frame with no visible sign it's annotated.
+  const src = row.has_box ? `/api/training/image/${row.id}?boxes=1` : `/api/training/image/${row.id}`;
+  const aiBadge = row.annotated_by === 'ai'
+    ? `<span class="ai-badge" title="Auto-labeled by the model, not yet reviewed by a human">🤖 AI</span>` : '';
+  return `
+    <div class="col-6 col-md-3 col-lg-2">
+      <div class="trained-thumb-card position-relative">
+        ${aiBadge}
+        <img src="${src}" class="trained-thumb" onclick="openPreview(${row.id}, '${row.filename.replace(/'/g, "\\'")}', ${row.has_box})">
+        <div class="trained-thumb-name" title="${row.filename}">${row.filename}</div>
+        ${section === 'annotated_by_user'
+          ? `<a class="btn btn-sm btn-outline-primary w-100 mt-1" href="/training?edit=${row.id}"><i class="bi bi-pencil"></i> Edit</a>`
+          : section === 'not_annotated'
+          ? `<a class="btn btn-sm btn-outline-success w-100 mt-1" href="/training?edit=${row.id}"><i class="bi bi-plus-square"></i> Annotate</a>`
+          : ''}
+      </div>
+    </div>`;
+}
+
+function updateShownCount() {
+  document.getElementById('shown-count').textContent =
+    totalCount ? `Showing ${loadedCount} of ${totalCount}` : '';
+  document.getElementById('load-more-btn').style.display = loadedCount < totalCount ? 'inline-block' : 'none';
+}
+
+// Fresh load (new tab/type) — replaces the grid, resets paging to page 1.
+async function loadGrid() {
+  const grid = document.getElementById('trained-grid');
+  const empty = document.getElementById('trained-empty');
+  grid.innerHTML = '';
+  loadedCount = 0;
+  const r = await fetch(`/api/trained/list?section=${section}&type=${imgType}&limit=${PAGE_SIZE}&offset=0`);
+  const data = await r.json();
+  totalCount = data.total;
+  loadedCount = data.rows.length;
+  empty.style.display = data.rows.length ? 'none' : 'block';
+  grid.innerHTML = data.rows.map(renderRow).join('');
+  updateShownCount();
+}
+
+// "Load more" — appends the next page instead of re-rendering what's
+// already shown, so 2000+ images don't need one giant initial fetch.
+async function loadMore() {
+  const grid = document.getElementById('trained-grid');
+  const r = await fetch(`/api/trained/list?section=${section}&type=${imgType}&limit=${PAGE_SIZE}&offset=${loadedCount}`);
+  const data = await r.json();
+  totalCount = data.total;
+  loadedCount += data.rows.length;
+  grid.insertAdjacentHTML('beforeend', data.rows.map(renderRow).join(''));
+  updateShownCount();
+}
+
+function openPreview(id, filename, hasBox) {
+  document.getElementById('previewModalLabel').textContent = filename;
+  document.getElementById('previewModalImg').src = hasBox ? `/api/training/image/${id}?boxes=1` : `/api/training/image/${id}`;
+  document.getElementById('previewModalFooter').innerHTML = section !== 'already_trained'
+    ? `<a class="btn btn-primary btn-sm" href="/training?edit=${id}"><i class="bi bi-pencil"></i> Edit</a>`
+    : '';
+  new bootstrap.Modal(document.getElementById('previewModal')).show();
+}
+
+switchType('fire');
+switchSection('annotated_by_user');
+</script>
+{% endblock %}

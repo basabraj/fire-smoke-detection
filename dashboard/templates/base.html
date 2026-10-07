@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+/* Keep Bootstrap's own theme (tables, list-groups, badges, modals, form
+   controls) in sync with the OS dark-mode preference our custom CSS vars
+   already follow — otherwise Bootstrap components stay stuck light and
+   render as unreadable white-on-dark blocks against our dark page. Runs
+   before the stylesheets so there's no light-theme flash. */
+(function () {
+  try {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var apply = function (isDark) { document.documentElement.setAttribute('data-bs-theme', isDark ? 'dark' : 'light'); };
+    apply(mq.matches);
+    mq.addEventListener('change', function (e) { apply(e.matches); });
+  } catch (e) {}
+})();
+</script>
+<title>{% block title %}Fire & Smoke Dashboard{% endblock %}</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"
+      integrity="sha384-tViUnnbYAV00FLIhhi3v/dWt3Jxw4gZQcNoSCxCIFNJVCx7/D55/wXsrNIRANwdD" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+        integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg app-navbar">
+  <div class="container-fluid px-4">
+    <a class="navbar-brand fw-bold" href="/"><i class="bi bi-fire"></i> <span class="brand-text">Fire &amp; Smoke Dashboard</span></a>
+    <div class="navbar-nav flex-row gap-1">
+      <a class="nav-link nav-pill {% if active == 'overview' %}active{% endif %}" href="/"><i class="bi bi-grid-1x2"></i> Overview</a>
+      <a class="nav-link nav-pill {% if active == 'alert' %}active{% endif %}" href="/alert"><i class="bi bi-bell"></i> Alert</a>
+      <a class="nav-link nav-pill {% if active == 'training' %}active{% endif %}" href="/training"><i class="bi bi-bounding-box-circles"></i> Training</a>
+      <a class="nav-link nav-pill {% if active == 'trained_images' %}active{% endif %}" href="/trained-images"><i class="bi bi-images"></i> Trained Images</a>
+      <a class="nav-link nav-pill {% if active == 'settings' %}active{% endif %}" href="/settings"><i class="bi bi-gear"></i> Settings</a>
+    </div>
+  </div>
+</nav>
+<main class="container-fluid px-4 py-4">
+  {% block content %}{% endblock %}
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

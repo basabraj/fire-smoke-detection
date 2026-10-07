@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Settings — Fire & Smoke Dashboard{% endblock %}
+{% block content %}
+
+<div class="chart-card mb-4">
+  <h6 class="mb-1"><i class="bi bi-camera-video-fill" style="color:var(--accent)"></i> Camera</h6>
+  <p class="text-muted small mb-3">Paste the RTSP URL and save — the detection model connects immediately, no restart needed.</p>
+
+  <div class="row g-3">
+    <div class="col-md-8">
+      <label class="form-label small text-muted mb-1">RTSP URL</label>
+      <input type="text" class="form-control" id="rtsp-url" placeholder="rtsp://user:pass@192.168.x.x:554/stream">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small text-muted mb-1">Location</label>
+      <input type="text" class="form-control" id="cam-location" placeholder="Home">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small text-muted mb-1">Camera name</label>
+      <input type="text" class="form-control" id="cam-name" placeholder="RTSP-Cam-1">
+    </div>
+  </div>
+
+  <div class="row g-3 mt-1">
+    <div class="col-md-6">
+      <label class="form-label small text-muted mb-1"><img class="fire-sticker" src="/static/img/fire-sticker.jpg" alt="" style="width:16px;height:16px;margin-right:4px;vertical-align:-3px">Fire confidence threshold — <span id="fire-conf-val">0.65</span></label>
+      <input type="range" class="form-range" id="fire-conf" min="0.10" max="0.95" step="0.01" value="0.65"
+             oninput="document.getElementById('fire-conf-val').textContent=this.value">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label small text-muted mb-1"><img class="smoke-sticker" src="/static/img/smoke-sticker.jpg" alt="" style="width:16px;height:16px;margin-right:4px;vertical-align:-3px">Smoke confidence threshold — <span id="smoke-conf-val">0.60</span></label>
+      <input type="range" class="form-range" id="smoke-conf" min="0.10" max="0.95" step="0.01" value="0.60"
+             oninput="document.getElementById('smoke-conf-val').textContent=this.value">
+    </div>
+  </div>
+
+  <div class="d-flex align-items-center gap-3 mt-3">
+    <button class="btn btn-sm" style="background:var(--accent); color:#fff; border-radius:8px; padding:0.5rem 1.2rem; font-weight:600"
+            onclick="saveCameraConfig()">Save &amp; Connect</button>
+    <span id="camera-status-badge" class="status-pill is-simulated">Checking…</span>
+  </div>
+  <div id="camera-msg" class="alert-form-msg"></div>
+
+  <div class="mt-3" id="preview-wrap" style="display:none">
+    <img id="camera-preview" src="/video_feed" style="max-width:100%; border-radius:12px; border:1px solid var(--border)">
+  </div>
+</div>
+
+<div class="chart-card placeholder-card text-center py-5">
+  <div class="placeholder-icon settings"><i class="bi bi-gear"></i></div>
+  <h5 class="placeholder-title">More settings — coming soon</h5>
+  <p class="placeholder-text">The nightly training window (currently fixed at 00:00–08:00 in config.py) will be configurable here too.</p>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadCameraConfig() {
+  const r = await fetch('/api/camera/config'); const d = await r.json();
+  if (d) {
+    document.getElementById('rtsp-url').value = d.rtsp_url;
+    document.getElementById('cam-location').value = d.location;
+    document.getElementById('cam-name').value = d.camera_name;
+    document.getElementById('fire-conf').value = d.fire_conf;
+    document.getElementById('fire-conf-val').textContent = d.fire_conf;
+    document.getElementById('smoke-conf').value = d.smoke_conf;
+    document.getElementById('smoke-conf-val').textContent = d.smoke_conf;
+  }
+}
+
+async function saveCameraConfig() {
+  const msg = document.getElementById('camera-msg');
+  const body = {
+    rtsp_url: document.getElementById('rtsp-url').value,
+    location: document.getElementById('cam-location').value,
+    camera_name: document.getElementById('cam-name').value,
+    fire_conf: parseFloat(document.getElementById('fire-conf').value),
+    smoke_conf: parseFloat(document.getElementById('smoke-conf').value),
+  };
+  const r = await fetch('/api/camera/config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  if (!r.ok) { msg.textContent = d.error || 'Could not save.'; msg.className = 'alert-form-msg error'; return; }
+  msg.textContent = 'Saved — connecting…'; msg.className = 'alert-form-msg ok';
+  pollStatus();
+}
+
+const STATUS_MAP = {
+  stopped:    ['is-simulated', 'Not connected'],
+  connecting: ['is-simulated', 'Connecting'],
+  connected:  ['is-sent', 'Connected'],
+  error:      ['is-failed', 'Error'],
+};
+
+async function pollStatus() {
+  const r = await fetch('/api/camera/status'); const d = await r.json();
+  const badge = document.getElementById('camera-status-badge');
+  const preview = document.getElementById('preview-wrap');
+  const [cls, label] = STATUS_MAP[d.state] || ['is-simulated', d.state];
+  badge.className = 'status-pill ' + cls;
+  badge.textContent = d.message ? `${label} — ${d.message}` : label;
+  preview.style.display = d.state === 'connected' ? 'block' : 'none';
+}
+
+loadCameraConfig();
+pollStatus();
+setInterval(pollStatus, 4000);
+</script>
+{% endblock %}

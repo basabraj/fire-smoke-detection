@@ -1,0 +1,18 @@
+# --- Virtual environments (several GB) ---
+fsenv/
+fsenv_win/
+venv/
+.venv/
+
+# --- Secrets / local config ---
+# dashboard.db holds the camera RTSP URL (with credentials), alert phone
+# numbers and detection history. Never commit it.
+.env
+.env.*
+
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+

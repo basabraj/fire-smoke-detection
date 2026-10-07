@@ -1,0 +1,404 @@
+:root {
+  color-scheme: light;
+  --surface-1: #ffffff;
+  --surface-2: #f7f7f8;
+  --page-plane: #eceef1;
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
+  --gridline: #ececee;
+  --baseline: #d4d4d8;
+  --border: #e4e4e7;
+  --ring: rgba(24,24,27,0.06);
+  --shadow-sm: 0 1px 2px rgba(24,24,27,0.04);
+  --shadow-card: 0 1px 3px rgba(24,24,27,0.05), 0 1px 2px rgba(24,24,27,0.04);
+  --shadow-hover: 0 4px 14px rgba(24,24,27,0.08), 0 1px 3px rgba(24,24,27,0.06);
+
+  --series-fire: #eb6834;   /* categorical slot 2 — orange */
+  --series-smoke: #2a78d6;  /* categorical slot 1 — blue */
+  --series-fire-tint: #fdece3;
+  --series-smoke-tint: #e5eefb;
+  --status-good: #16a34a;
+  --status-good-tint: #ecfdf3;
+  --status-critical: #dc2626;
+  --status-critical-tint: #fef2f2;
+  --accent: #6d5efc;
+
+  /* Brand bar — deliberately fixed (not swapped by light/dark mode) so the
+     "Fire & Smoke Dashboard" wordmark always sits on a dark, warm plate and
+     the light reddish-white text stays legible in both themes. */
+  --navbar-bg: linear-gradient(135deg, #241412, #1a0f0d);
+  --navbar-border: rgba(255,255,255,0.08);
+  --navbar-text: rgba(255,255,255,0.64);
+  --navbar-text-hover: #ffffff;
+  --brand-text: #ffd9d0;
+}
+
+body {
+  background: var(--page-plane);
+  color: var(--text-primary);
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-navbar {
+  background: var(--navbar-bg);
+  border-bottom: 1px solid var(--navbar-border);
+}
+.navbar-brand .brand-text { color: var(--brand-text); }
+.navbar-brand i.bi-fire { color: #ff8a65 !important; }
+
+.nav-pill {
+  color: var(--navbar-text) !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.nav-pill.active {
+  background: rgba(255,255,255,0.12);
+  color: var(--navbar-text-hover) !important;
+}
+.nav-pill:hover:not(.active) {
+  background: rgba(255,255,255,0.07);
+  color: var(--navbar-text-hover) !important;
+}
+
+.stat-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.1rem 1.25rem;
+  height: 100%;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.stat-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+.stat-card.fire { border-top: 2px solid var(--series-fire); }
+.stat-card.smoke { border-top: 2px solid var(--series-smoke); }
+.stat-card .stat-label {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.stat-card .stat-value {
+  font-size: 2.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.stat-card.fire .stat-value { color: var(--series-fire); }
+.stat-card.smoke .stat-value { color: var(--series-smoke); }
+
+.chart-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+.chart-card h6 {
+  font-weight: 600;
+  margin-bottom: 0;
+}
+
+/* Latest Training Result — grey outer shell so the nested white
+   Precision/Recall/mAP cards and sample-clip tiles pop, same idea as the
+   grey page-plane behind the Alert/Settings placeholder cards. */
+.chart-card.results-shell {
+  background: var(--page-plane);
+  border-color: var(--border);
+}
+.results-shell .chart-card {
+  background: var(--surface-1);
+  box-shadow: var(--shadow-card);
+}
+.results-shell #run-history-tbody,
+.results-shell .table {
+  background: var(--surface-1);
+}
+.results-shell .table-responsive {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.25rem 0.75rem;
+}
+
+.section-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.78rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--accent);
+}
+
+/* ── "Coming soon" placeholder pages (Alert / Settings) ──────────────────
+   Sat on the grey page-plane, these need their own pop since there's
+   nothing else on the page to establish contrast. */
+.placeholder-card { box-shadow: var(--shadow-hover); max-width: 560px; margin: 2rem auto; }
+.placeholder-icon {
+  width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 1.1rem;
+  display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
+}
+.placeholder-icon.alert { background: var(--series-fire-tint); color: var(--series-fire); }
+.placeholder-icon.settings { background: rgba(109,94,252,0.12); color: var(--accent); }
+.placeholder-title { font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; }
+.placeholder-text { color: var(--text-secondary); margin-bottom: 0; }
+.chart-toggle-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.chart-toggle-nav button {
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: background 0.15s ease;
+}
+.chart-toggle-nav button:hover { background: var(--surface-2); }
+.chart-toggle-nav button:disabled { opacity: 0.35; cursor: default; }
+.chart-toggle-nav .period-label {
+  min-width: 110px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.chart-canvas-wrap { position: relative; height: 240px; }
+
+.table thead th {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom-width: 1px;
+}
+.violation-yes { color: var(--status-critical); font-weight: 700; }
+.violation-no { color: var(--status-good); font-weight: 700; }
+.footage-thumb { width: 64px; height: 40px; object-fit: cover; border-radius: 6px; cursor: pointer; }
+
+/* ── Recent Detections table (redesigned) ────────────────────────────────
+   Vercel/shadcn-style row treatment: icon avatar instead of colored text,
+   soft-tint status pills instead of emoji, hairline row dividers instead
+   of Bootstrap's default table borders, hover-highlight rows. */
+.detections-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.detections-table thead th {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 0 0.75rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+.detections-table tbody tr { transition: background 0.12s ease; }
+.detections-table tbody tr:hover { background: var(--surface-2); }
+.detections-table tbody td {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid var(--gridline);
+  vertical-align: middle;
+  font-size: 0.88rem;
+}
+.detections-table tbody tr:last-child td { border-bottom: none; }
+
+.dtype-cell { display: flex; align-items: center; gap: 10px; }
+.dtype-icon {
+  width: 32px; height: 32px; border-radius: 9px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem; overflow: hidden;
+}
+.dtype-icon.fire { background: var(--series-fire-tint); color: var(--series-fire); }
+.dtype-icon.smoke { background: var(--series-smoke-tint); color: var(--series-smoke); }
+.dtype-icon.smoke img, .dtype-icon.fire img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
+.smoke-sticker, .fire-sticker { object-fit: cover; border-radius: 4px; display: inline-block; }
+.dtype-label { font-weight: 600; text-transform: capitalize; color: var(--text-primary); }
+
+.cell-primary { color: var(--text-primary); font-weight: 500; }
+.cell-secondary { color: var(--text-muted); font-size: 0.8rem; }
+.cell-time { font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.cell-time .time-ago { display: block; color: var(--text-muted); font-size: 0.76rem; }
+
+.status-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px 3px 8px; border-radius: 999px;
+  font-size: 0.76rem; font-weight: 600;
+}
+.status-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.status-pill.is-yes { background: var(--status-critical-tint); color: var(--status-critical); }
+.status-pill.is-no { background: var(--status-good-tint); color: var(--status-good); }
+.status-pill.is-sent { background: var(--status-good-tint); color: var(--status-good); }
+.status-pill.is-simulated { background: var(--series-smoke-tint); color: var(--series-smoke); }
+.status-pill.is-failed { background: var(--status-critical-tint); color: var(--status-critical); }
+
+/* ── Alert page: emergency contact + fire gallery ────────────────────────── */
+.phone-input-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.phone-prefix {
+  display: flex; align-items: center; padding: 0 12px; height: 42px;
+  border: 1px solid var(--border); border-right: none; border-radius: 10px 0 0 10px;
+  background: var(--surface-2); color: var(--text-secondary); font-weight: 600;
+}
+.phone-input-row input[type="tel"] {
+  height: 42px; border: 1px solid var(--border); border-left: none; border-radius: 0 10px 10px 0;
+  padding: 0 12px; font-size: 0.95rem; background: var(--surface-1); color: var(--text-primary);
+  width: 220px; outline: none;
+}
+.phone-input-row input[type="tel"]:focus { border-color: var(--series-fire); }
+.phone-input-wrap { display: flex; }
+.recipient-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: 10px;
+  background: var(--status-good-tint); color: var(--status-good); font-weight: 600;
+}
+.recipient-badge button {
+  border: none; background: none; color: inherit; opacity: 0.7; cursor: pointer; font-size: 1rem; line-height: 1;
+}
+.recipient-badge button:hover { opacity: 1; }
+.alert-form-msg { font-size: 0.85rem; margin-top: 8px; }
+.alert-form-msg.error { color: var(--status-critical); }
+.alert-form-msg.ok { color: var(--status-good); }
+
+.fire-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.fire-gallery-item {
+  border-radius: 12px; overflow: hidden; border: 1px solid var(--border); cursor: pointer;
+  background: var(--surface-2); transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.fire-gallery-item:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+.fire-gallery-item img { width: 100%; height: 100px; object-fit: cover; display: block; }
+.fire-gallery-item .meta { padding: 6px 8px; font-size: 0.72rem; color: var(--text-secondary); }
+.fire-gallery-item .meta .conf { color: var(--series-fire); font-weight: 700; }
+.fire-gallery-item.is-flagged { opacity: 0.6; }
+.mark-wrong-btn {
+  width: 100%; border: none; border-top: 1px solid var(--border);
+  background: var(--surface-1); color: var(--text-muted);
+  font-size: 0.68rem; padding: 5px 6px; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.mark-wrong-btn:hover { background: var(--status-critical-tint); color: var(--status-critical); }
+.wrong-badge {
+  padding: 5px 6px; border-top: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text-muted);
+  font-size: 0.64rem; text-align: center;
+}
+.wrong-badge i { color: var(--status-critical); }
+.mark-wrong-btn-sm {
+  width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface-1); color: var(--text-muted); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.mark-wrong-btn-sm:hover { background: var(--status-critical-tint); color: var(--status-critical); border-color: var(--status-critical); }
+
+.detections-table .footage-thumb {
+  width: 56px; height: 40px; border-radius: 8px; border: 1px solid var(--border);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.detections-table .footage-thumb:hover { transform: scale(1.08); box-shadow: var(--shadow-hover); }
+.footage-empty { color: var(--text-muted); font-size: 0.8rem; }
+
+/* Training / annotation canvas */
+.annotate-stage { position: relative; display: inline-block; max-width: 100%; }
+.annotate-stage canvas { max-width: 100%; border-radius: 10px; border: 1px solid var(--border); }
+.class-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px; font-weight: 600;
+  background: var(--gridline);
+}
+.class-badge.fire { color: var(--series-fire); }
+.class-badge.smoke { color: var(--series-smoke); }
+.thumb-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
+.thumb-strip img {
+  width: 72px; height: 54px; object-fit: cover; border-radius: 8px;
+  border: 2px solid transparent; cursor: pointer; flex: none;
+}
+.thumb-strip img.active { border-color: var(--series-fire); }
+
+/* ── Trained Images page — three-section thumbnail grid ────────────────── */
+.trained-thumb-card { margin-bottom: 1rem; }
+.trained-thumb {
+  width: 100%; height: 110px; object-fit: cover; border-radius: 8px;
+  cursor: pointer; border: 1px solid var(--border);
+}
+.trained-thumb-name {
+  font-size: 0.7rem; color: var(--text-secondary); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; margin-top: 4px;
+}
+.ai-badge {
+  position: absolute; top: 4px; left: 4px; z-index: 2;
+  background: rgba(0,0,0,0.65); color: #fff; font-size: 0.65rem;
+  padding: 1px 6px; border-radius: 6px; pointer-events: none;
+}
+
+/* ── Animated ranked bars (Ultralytics-benchmark style) ──────────────────
+   Hand-rolled instead of Chart.js on purpose: the grow-from-zero width
+   transition + sweep highlight + count-up value is a CSS/JS pattern, not
+   a chart-library one — see the reference tracker-benchmark.py report. */
+.metric-row { display: grid; grid-template-columns: 84px 1fr 70px; align-items: center; gap: 12px; margin-bottom: 11px; }
+.metric-row .metric-name { color: var(--text-secondary); font-size: 0.82rem; text-align: right; white-space: nowrap; }
+.metric-track { position: relative; height: 20px; background: var(--gridline); border-radius: 5px; overflow: hidden; }
+.metric-bar {
+  position: relative; height: 100%; border-radius: 5px; background: var(--c);
+  transition: width 1.1s cubic-bezier(.22,1,.36,1);
+}
+.metric-bar::after {
+  content: ""; position: absolute; inset: 0; border-radius: 5px; transform: translateX(-100%);
+  background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,0.6) 50%, transparent 80%);
+  animation: metric-sweep 2.8s 1.2s infinite;
+}
+.metric-val { font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.metric-row.fire { --c: var(--series-fire); }
+.metric-row.smoke { --c: var(--series-smoke); }
+
+.run-row { animation: metric-slide 0.5s both; }
+.best-badge {
+  margin-left: 8px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 20px;
+  color: var(--text-secondary); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase;
+  animation: metric-pulse 2.4s infinite;
+}
+.metric-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c); margin-right: 6px; }
+
+.sample-clip { background: var(--surface-1); border-top: 3px solid var(--c); border-radius: 10px; overflow: hidden; border: 1px solid var(--border); border-top-width: 3px; animation: metric-rise 0.5s both; }
+.sample-clip img { display: block; width: 100%; height: 120px; object-fit: cover; }
+.sample-clip.fire { --c: var(--series-fire); }
+.sample-clip.smoke { --c: var(--series-smoke); }
+
+@keyframes metric-sweep { 0% { transform: translateX(-100%); } 55%, 100% { transform: translateX(100%); } }
+@keyframes metric-slide { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+@keyframes metric-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes metric-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .metric-bar, .metric-bar::after, .run-row, .best-badge, .sample-clip { animation: none !important; transition: none !important; } }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-1: #18181b;
+    --surface-2: #212124;
+    --page-plane: #0e0e10;
+    --text-primary: #fafafa;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --gridline: #27272a;
+    --baseline: #3f3f46;
+    --border: #2c2c30;
+    --ring: rgba(255,255,255,0.06);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-hover: 0 4px 16px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.35);
+
+    --series-fire: #f0803f;
+    --series-smoke: #4a95ec;
+    --series-fire-tint: rgba(240,128,63,0.14);
+    --series-smoke-tint: rgba(74,149,236,0.14);
+    --status-good: #34d066;
+    --status-good-tint: rgba(52,208,102,0.12);
+    --status-critical: #f0605a;
+    --status-critical-tint: rgba(240,96,90,0.12);
+    --accent: #8b7bff;
+  }
+}

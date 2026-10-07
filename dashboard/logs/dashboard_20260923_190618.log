@@ -1,0 +1,23 @@
+/etc/timezone is deprecated in some distros, and no longer reliable. tzlocal is ignoring it, and you can likely delete it.
+ * Serving Flask app 'app'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5050
+ * Running on http://192.168.96.111:5050
+Press CTRL+C to quit
+NvMMLiteOpen : Block : BlockType = 261 
+/home/conglomerate/Desktop/Fire & Smoke/Home/fsenv/lib/python3.12/site-packages/torch/cuda/__init__.py:484: UserWarning: Found GPU0 Orin which is of compute capability (CC) 8.7.
+The following list shows the CCs this version of PyTorch was built for and the hardware CCs it supports:
+- 8.0 which supports hardware CC >=8.0,<9.0 except {8.7}
+- 9.0 which supports hardware CC >=9.0,<10.0
+- 10.0 which supports hardware CC >=10.0,<11.0 except {10.1}
+- 11.0 which supports hardware CC {10.1, 11.0}
+- 12.0 which supports hardware CC >=12.0,<13.0
+No published PyTorch CUDA builds for release 2.14.0+cu130 support this GPU. Visit https://pytorch.org/get-started/locally/ to find a compatible release.
+  _warn_unsupported_code(d, device_cc, code_ccs)
+NvMMLiteBlockCreate : Block : BlockType = 261 
+127.0.0.1 - - [23/Sep/2026 19:06:47] "GET /api/camera/status HTTP/1.1" 200 -
+127.0.0.1 - - [23/Sep/2026 19:07:36] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [23/Sep/2026 19:07:47] "GET /api/camera/status HTTP/1.1" 200 -
+127.0.0.1 - - [23/Sep/2026 19:10:26] "GET / HTTP/1.1" 200 -
