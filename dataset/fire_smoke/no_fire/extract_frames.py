@@ -1,0 +1,78 @@
+import os
+import cv2
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+VIDEOS_DIR = os.path.join(HERE, "videos")
+FRAMES_DIR = os.path.join(HERE, "frames")
+SECONDS_PER_FRAME = 1.0
+IMAGE_FORMAT = "jpg"
+VIDEO_EXTENSIONS = (".mp4", ".avi", ".mkv", ".mov")
+
+
+def extract_one(video_path, video_identifier):
+    capture = cv2.VideoCapture(video_path)
+    if not capture.isOpened():
+        print(f"  [SKIP] could not open: {video_path}")
+        return 0
+
+    source_fps = capture.get(cv2.CAP_PROP_FPS)
+    if source_fps <= 1:
+        source_fps = 15.0
+    frame_interval = max(1, round(source_fps * SECONDS_PER_FRAME))
+
+    frame_index = 0
+    saved_count = 0
+    failed_count = 0
+
+    while True:
+        if frame_index % frame_interval == 0:
+            success, frame = capture.read()  # frame we're keeping — full decode
+            if not success:
+                break
+            timestamp_seconds = frame_index / source_fps
+           
+            filename = f"{video_identifier}_f{frame_index:06d}_t{timestamp_seconds:07.2f}.{IMAGE_FORMAT}"
+            ok = cv2.imwrite(os.path.join(FRAMES_DIR, filename), frame)
+            if ok:
+                saved_count += 1
+            else:
+                failed_count += 1  
+        else:
+            success = capture.grab()  # frame we're skipping — cheap, no decode
+            if not success:
+                break
+        frame_index += 1
+
+    capture.release()
+    if failed_count:
+        print(f"  [WARN] {failed_count} frame(s) failed to write")
+    return saved_count
+
+
+def main():
+    os.makedirs(FRAMES_DIR, exist_ok=True)
+
+    videos = sorted(
+        f for f in os.listdir(VIDEOS_DIR)
+        if f.lower().endswith(VIDEO_EXTENSIONS)
+    )
+    if not videos:
+        print(f"No video files found in: {VIDEOS_DIR}")
+        return
+
+    print(f"Found {len(videos)} videos. Extracting 1 frame/sec into {FRAMES_DIR}\n")
+
+    total_saved = 0
+    for i, filename in enumerate(videos, 1):
+        video_path = os.path.join(VIDEOS_DIR, filename)
+        video_identifier = os.path.splitext(filename)[0].replace(" ", "_")
+        print(f"[{i}/{len(videos)}] {filename}")
+        saved = extract_one(video_path, video_identifier)
+        total_saved += saved
+        print(f"  -> {saved} frames saved")
+
+    print(f"\nDone. {total_saved} frames total saved to {FRAMES_DIR}")
+
+
+if __name__ == "__main__":
+    main()
